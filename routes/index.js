@@ -36,11 +36,6 @@ router.post('/register', async function (req, res, next) {
     if (hemisphere === 'N') {
       const dbClient = await db.getClient();
 
-      const existingUser = await dbClient.get('SELECT * FROM users WHERE email = ?', [email]);
-      if (existingUser) {
-        return res.status(409).send({ error: 'Email already in use' });
-      }
-
       await dbClient.run(
         'INSERT INTO users (username, email, password, latitude, longitude, browser_language) VALUES (?, ?, ?, ?, ?, ?)',
         [username, email, password, latitude, longitude, browser_language]
@@ -48,7 +43,7 @@ router.post('/register', async function (req, res, next) {
       res.status(201).send({ message: 'User registered in the Northern Hemisphere' });
 
     } else if (hemisphere === 'S') {
-      //Simula una comprobación de si el correo electrónico existe en el sistema de terceros para el hemisferio sur
+      //Simula una comprobación de si el correo electrónico existe en el sistema de terceros para el hemisferio sur, esto por que se desconoce la definicion de la db.
       const existingUser = await checkSouthernHemisphereEmail(email);
       if (existingUser) {
         return res.status(409).send({ error: 'Email already in use in Southern Hemisphere' });
@@ -58,6 +53,9 @@ router.post('/register', async function (req, res, next) {
       res.status(201).send({ message: 'User registered in the Southern Hemisphere' });
     }
   } catch (error) {
+    if (error.message.includes('UNIQUE constraint failed: users.email')) {
+      return res.status(409).send({ error: 'Email already in use' });
+    }
     res.status(500).send({ error: error.message });
   }
 });
@@ -80,11 +78,6 @@ router.put('/users/:id', async function (req, res, next) {
     if (hemisphere === 'N') {
       const dbClient = await db.getClient();
 
-      const existingUser = await dbClient.get('SELECT * FROM users WHERE email = ? AND id != ?', [email, id]);
-      if (existingUser) {
-        return res.status(409).send({ error: 'Email already in use' });
-      }
-
       const result = await dbClient.run(
         'UPDATE users SET username = ?, email = ?, password = ?, latitude = ?, longitude = ?, browser_language = ? WHERE id = ?',
         [username, email, password, latitude, longitude, browser_language, id]
@@ -96,7 +89,7 @@ router.put('/users/:id', async function (req, res, next) {
         res.status(200).send({ message: 'User updated successfully' });
       }
     } else if (hemisphere === 'S') {
-      //Simula una comprobación de si el correo electrónico existe en el sistema de terceros para el hemisferio sur
+      //Simula una comprobación de si el correo electrónico existe en el sistema de terceros para el hemisferio sur,  esto por que se desconoce la definicion de la db.
       const existingUser = await checkSouthernHemisphereEmail(email);
       if (existingUser) {
         return res.status(409).send({ error: 'Email already in use in Southern Hemisphere' });
@@ -106,6 +99,9 @@ router.put('/users/:id', async function (req, res, next) {
       res.status(200).send({ message: 'User updated in the Southern Hemisphere' });
     }
   } catch (error) {
+    if (error.message.includes('UNIQUE constraint failed: users.email')) {
+      return res.status(409).send({ error: 'Email already in use' });
+    }
     res.status(500).send({ error: error.message });
   }
 });
