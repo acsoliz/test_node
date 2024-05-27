@@ -11,7 +11,7 @@ API REST desarrollada con Node.js y Express.js para gestionar una red social de 
 
 1. Clona el repositorio en tu máquina local:
 
-   git clone https://github.com/acsoliz/mi-red-social.git
+   git clone https://github.com/acsoliz/test_node.git
 
 2. Navega al directorio del proyecto:
 
