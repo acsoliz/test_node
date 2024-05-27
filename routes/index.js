@@ -1,8 +1,7 @@
-// routes/index.js
 const express = require('express');
 const db = require('../lib/db');
 const { isSouthOrNorth } = require('../utils/geoLocation');
-const { insertUser } = require('../services/southernUsersApi');
+const { insertUser, checkSouthernHemisphereEmail } = require('../services/southernUsersApi');
 const router = express.Router();
 
 /* GET home page. */
@@ -36,12 +35,25 @@ router.post('/register', async function (req, res, next) {
 
     if (hemisphere === 'N') {
       const dbClient = await db.getClient();
+
+      const existingUser = await dbClient.get('SELECT * FROM users WHERE email = ?', [email]);
+      if (existingUser) {
+        return res.status(409).send({ error: 'Email already in use' });
+      }
+
       await dbClient.run(
         'INSERT INTO users (username, email, password, latitude, longitude, browser_language) VALUES (?, ?, ?, ?, ?, ?)',
         [username, email, password, latitude, longitude, browser_language]
       );
       res.status(201).send({ message: 'User registered in the Northern Hemisphere' });
+
     } else if (hemisphere === 'S') {
+      //Simula una comprobación de si el correo electrónico existe en el sistema de terceros para el hemisferio sur
+      const existingUser = await checkSouthernHemisphereEmail(email);
+      if (existingUser) {
+        return res.status(409).send({ error: 'Email already in use in Southern Hemisphere' });
+      }
+
       await insertUser({ username, email, password, latitude, longitude, browser_language });
       res.status(201).send({ message: 'User registered in the Southern Hemisphere' });
     }
@@ -49,6 +61,8 @@ router.post('/register', async function (req, res, next) {
     res.status(500).send({ error: error.message });
   }
 });
+
+
 
 
 /* PUT update user. */
@@ -65,6 +79,12 @@ router.put('/users/:id', async function (req, res, next) {
 
     if (hemisphere === 'N') {
       const dbClient = await db.getClient();
+
+      const existingUser = await dbClient.get('SELECT * FROM users WHERE email = ? AND id != ?', [email, id]);
+      if (existingUser) {
+        return res.status(409).send({ error: 'Email already in use' });
+      }
+
       const result = await dbClient.run(
         'UPDATE users SET username = ?, email = ?, password = ?, latitude = ?, longitude = ?, browser_language = ? WHERE id = ?',
         [username, email, password, latitude, longitude, browser_language, id]
@@ -76,6 +96,12 @@ router.put('/users/:id', async function (req, res, next) {
         res.status(200).send({ message: 'User updated successfully' });
       }
     } else if (hemisphere === 'S') {
+      //Simula una comprobación de si el correo electrónico existe en el sistema de terceros para el hemisferio sur
+      const existingUser = await checkSouthernHemisphereEmail(email);
+      if (existingUser) {
+        return res.status(409).send({ error: 'Email already in use in Southern Hemisphere' });
+      }
+
       await insertUser({ username, email, password, latitude, longitude, browser_language });
       res.status(200).send({ message: 'User updated in the Southern Hemisphere' });
     }
@@ -109,7 +135,9 @@ router.get('/users/:id/friends', async (req, res) => {
   try {
     const dbClient = await db.getClient();
     const friends = await dbClient.all(
-      // Query para devolver el listado de amigos de un usuario
+      /* 
+      * Query para devolver el listado de amigos de un usuario
+      */
       'SELECT u.id, u.username, u.email, u.latitude, u.longitude, u.browser_language FROM users u JOIN friendships f ON u.id = f.friend_id WHERE f.user_id = ?',
       id
     );
@@ -126,7 +154,9 @@ router.get('/users/:id/friends/count', async (req, res) => {
   try {
     const dbClient = await db.getClient();
     const result = await dbClient.get(
-      // Query para devolver el contador de amigos totales de un usuario
+      /*
+      *  Query para devolver el contador de amigos totales de un usuario
+      */
       'SELECT COUNT(*) AS total_friends FROM friendships WHERE user_id = ?',
       id
     );

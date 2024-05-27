@@ -14,7 +14,6 @@ const createSchema = async () => {
   await dbClient.exec(schema);
 
   // const res = await dbClient.all('select *  from test');
-  // console.log('res:::', res);
 
   dbClient.close();
 };
